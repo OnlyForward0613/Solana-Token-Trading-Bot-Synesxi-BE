@@ -44,7 +44,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(xss());
 app.use(mongoSanitize());
 app.use(compression());
-app.use(cors());
+app.use(cors({
+  origin: [
+    'https://solana-token-trading-bot-synesxi-be.vercel.app',
+    'http://localhost:3000' // For local testing
+  ],
+  credentials: true
+}));
 app.options('*', cors());
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
