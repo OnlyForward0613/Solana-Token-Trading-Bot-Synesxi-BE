@@ -9,7 +9,7 @@ COPY --chown=node:node package*.json ./
 
 # Disable Husky and install production dependencies
 USER node
-RUN npm set-script prepare "" && npm ci --only=production
+RUN npm ci --only=production
 
 # Copy application code
 COPY --chown=node:node . .
