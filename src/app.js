@@ -46,8 +46,8 @@ app.use(mongoSanitize());
 app.use(compression());
 app.use(cors({
   origin: [
-    'https://solana-token-trading-bot-synesxi-be.vercel.app',
-    'http://localhost:3000' // For local testing
+    'https://solana-token-trading-bot-d-app-three.vercel.app/en',
+    'http://localhost:3001' // For local testing
   ],
   credentials: true
 }));
