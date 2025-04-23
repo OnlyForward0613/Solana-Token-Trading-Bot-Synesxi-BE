@@ -7,13 +7,13 @@ WORKDIR /usr/src/node-app
 # Copy package files first (better layer caching)
 COPY --chown=node:node package*.json ./
 
-# Install production dependencies
+# Disable Husky and install production dependencies
 USER node
-RUN npm ci --only=production
+RUN npm set-script prepare "" && npm ci --only=production
 
-# Copy ALL files (including src folder)
+# Copy application code
 COPY --chown=node:node . .
 
-# Specify the correct entry point for src/index.js
+# Expose port and run
 EXPOSE 3000
-CMD ["node", "src/index.js"]  # Updated path to index.js
+CMD ["node", "src/index.js"]
