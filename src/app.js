@@ -49,8 +49,8 @@ app.use(cors({
     'https://solana-token-trading-bot-d-app-three.vercel.app/en',
     'https://solana-token-trading-bot-d-app-three.vercel.app',
     'https://solana-token-trading-bot-synesxi-fe.vercel.app',
-    'http://localhost:3001', // For local testing
-    'http://localhost:3000' // For local testing
+    'http://localhost:3001',
+    'http://localhost:3000'
   ],
   credentials: true
 }));
@@ -61,7 +61,7 @@ passport.use('jwt', jwtStrategy);
 // Schema
 const typeDefs = gql`
   type Token {
-    id: String!
+    address: String!
     name: String!
     symbol: String!
     price: Float!
@@ -70,44 +70,85 @@ const typeDefs = gql`
   }
 
   type Query {
-    tokens(search: String): [Token]
+    tokens(
+      search: String
+      limit: Int
+      offset: Int
+      mode: TokenSearchMode = INITIAL_LOAD
+    ): [Token!]!
     token(address: String!): Token
   }
 
+  enum TokenSearchMode {
+    INITIAL_LOAD
+    SEARCH
+  }
+  
   type Mutation {
     simulateTrade(tokenAddress: String!, amount: Float!, isBuy: Boolean!, slippage: Float!): String
   }
 `;
 
+const CHAINS = ['ethereum', 'bsc', 'arbitrum', 'optimism', 'polygon'];
+
 // Resolvers
 const resolvers = {
   Query: {
-    tokens: async (_, { search }) => {
+    tokens: async (_, { search, limit = 9, offset = 0, mode }) => {
       try {
-        const url = search 
-          ? `${DEX_SCREENER_URL}/search?q=${search}`
-          : `${DEX_SCREENER_URL}/tokens/`;
+        // Initial load - get top traded pairs
+        if (mode === 'INITIAL_LOAD') {
 
-        const response = await axios.get(url);
-        const pairs = response.pairs || response.data;
-        
-        if (!Array.isArray(pairs)) {
-          throw new ApolloError('Invalid API response', 'API_FORMAT_ERROR');
+          const response1 = await axios.get(`${DEX_SCREENER_URL}/search?q=sol/usdc`);
+          const response2 = await axios.get(`${DEX_SCREENER_URL}/search?q=ethereum/usdc`);
+          const response3 = await axios.get(`${DEX_SCREENER_URL}/search?q=bsc/usdc`);
+          const response4 = await axios.get(`${DEX_SCREENER_URL}/search?q=arbitrum/usdc`);
+          const response5 = await axios.get(`${DEX_SCREENER_URL}/search?q=optimism/usdc`);
+          const response6 = await axios.get(`${DEX_SCREENER_URL}/search?q=polygon/usdc`);
+          let pairs = [];
+          pairs.push(response1.pairs[0]);
+          pairs.push(response2.pairs[0]);
+          pairs.push(response3.pairs[0]);
+          pairs.push(response4.pairs[0]);
+          pairs.push(response5.pairs[0]);
+          pairs.push(response6.pairs[0]);
+          // let pairs = response1?.pairs[0] + response2.pairs[0] + response3.pairs[0] + response4.pairs[0] + response5.pairs[0] + response6.pairs[0];
+          
+          return pairs
+            .map(pair => ({
+              address: pair.baseToken?.address,
+              name: pair.baseToken?.name || 'Unknown',
+              symbol: pair.baseToken?.symbol || 'UNK',
+              price: pair.priceUsd ? parseFloat(pair.priceUsd) : 0,
+              priceChange24h: pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) : 0,
+              liquidity: pair.liquidity?.usd ? parseFloat(pair.liquidity.usd) : 0
+            }));
+        } else if (search) {
+          const response = await axios.get(`${DEX_SCREENER_URL}/search?q=${search}`);
+          console.log("hereSearch====", response.pairs)
+          const pairs = response?.pairs || [];
+          
+          return pairs
+            .slice(offset, offset + limit)
+            .map(pair => ({
+              address: pair.baseToken?.address,
+              name: pair.baseToken?.name || 'Unknown',
+              symbol: pair.baseToken?.symbol || 'UNK',
+              price: pair.priceUsd ? parseFloat(pair.priceUsd) : 0,
+              priceChange24h: pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) : 0,
+              liquidity: pair.liquidity?.usd ? parseFloat(pair.liquidity.usd) : 0
+            }));
         }
 
-        return pairs.map(pair => ({
-          id: pair.baseToken?.address || 'N/A',
-          name: pair.baseToken?.name || 'Unknown',
-          symbol: pair.baseToken?.symbol || 'UNK',
-          price: pair.priceUsd ? parseFloat(pair.priceUsd) : 0,
-          priceChange24h: pair.priceChange?.h24 ? parseFloat(pair.priceChange.h24) : 0,
-          liquidity: pair.liquidity?.usd ? parseFloat(pair.liquidity.usd) : 0
-        }));
+        return [];
+
       } catch (error) {
-        throw new ApolloError('Failed to fetch tokens', 'API_ERROR', {
-          statusCode: error.status,
-          originalError: error.message
+        console.error('API Error:', {
+          url: error.config?.url,
+          status: error.response?.status,
+          data: error.response?.data
         });
+        throw new ApolloError('Failed to fetch tokens', 'API_ERROR');
       }
     },
     token: async (_, { address }) => {
@@ -138,6 +179,7 @@ const resolvers = {
     },
   },
 };
+
 
 // Apollo Server
 const apolloServer = new ApolloServer({
