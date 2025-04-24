@@ -48,6 +48,7 @@ app.use(cors({
   origin: [
     'https://solana-token-trading-bot-d-app-three.vercel.app/en',
     'https://solana-token-trading-bot-d-app-three.vercel.app',
+    'https://solana-token-trading-bot-synesxi-fe.vercel.app',
     'http://localhost:3001', // For local testing
     'http://localhost:3000' // For local testing
   ],
